@@ -23,7 +23,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: evaluation-service
-          image: 024532670257.dkr.ecr.us-east-1.amazonaws.com/togglemaster-dev/evaluation-service:be9c3899c5d49d1578b3a413d25acaaec61cfad9
+          image: 024532670257.dkr.ecr.us-east-1.amazonaws.com/togglemaster-dev/evaluation-service:8ae6d84bd099ff49e49de9f9323ede43da08bced
           ports:
             - containerPort: 8004
           securityContext:
