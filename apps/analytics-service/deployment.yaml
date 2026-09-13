@@ -66,6 +66,14 @@ spec:
                 configMapKeyRef:
                   name: togglemaster-config
                   key: dynamodb-table
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        # o filesystem da imagem e somente leitura, e o gunicorn precisa escrever em /tmp
+        - name: tmp
+          emptyDir: {}
+
 ---
 apiVersion: v1
 kind: Service
