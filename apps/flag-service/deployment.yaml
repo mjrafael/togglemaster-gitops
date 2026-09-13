@@ -21,7 +21,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: flag-service
-          image: 024532670257.dkr.ecr.us-east-1.amazonaws.com/togglemaster-dev/flag-service:PLACEHOLDER_TAG
+          image: 024532670257.dkr.ecr.us-east-1.amazonaws.com/togglemaster-dev/flag-service:2fb64be7b645318faad097567dc8cfcbb4669ef4
           ports:
             - containerPort: 8002
           securityContext:
