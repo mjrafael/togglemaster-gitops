@@ -21,7 +21,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: auth-service
-          image: 024532670257.dkr.ecr.us-east-1.amazonaws.com/togglemaster-dev/auth-service:PLACEHOLDER_TAG
+          image: 024532670257.dkr.ecr.us-east-1.amazonaws.com/togglemaster-dev/auth-service:be9c3899c5d49d1578b3a413d25acaaec61cfad9
           ports:
             - containerPort: 8001
           securityContext:
