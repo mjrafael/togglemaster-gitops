@@ -22,7 +22,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: analytics-service
-          image: 024532670257.dkr.ecr.us-east-1.amazonaws.com/togglemaster-dev/analytics-service:PLACEHOLDER_TAG
+          image: 024532670257.dkr.ecr.us-east-1.amazonaws.com/togglemaster-dev/analytics-service:2fb64be7b645318faad097567dc8cfcbb4669ef4
           ports:
             - containerPort: 8005
           securityContext:
