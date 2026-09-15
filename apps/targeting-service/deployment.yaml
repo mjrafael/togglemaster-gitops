@@ -22,7 +22,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: targeting-service
-          image: 024532670257.dkr.ecr.us-east-1.amazonaws.com/togglemaster-dev/targeting-service:8ae6d84bd099ff49e49de9f9323ede43da08bced
+          image: 024532670257.dkr.ecr.us-east-1.amazonaws.com/togglemaster-dev/targeting-service:93b2a9e2b089542f66aa1953cc2547b54a15110f
           ports:
             - containerPort: 8003
           securityContext:
