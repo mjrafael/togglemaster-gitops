@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: runbook-self-healing
+  namespace: observabilidade
+  labels:
+    app: runbook-self-healing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: runbook-self-healing
+  template:
+    metadata:
+      labels:
+        app: runbook-self-healing
+    spec:
+      serviceAccountName: runbook-self-healing
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: runbook
+          # imagem oficial sem nada instalado: o script usa só a biblioteca padrão e vem de ConfigMap
+          image: python:3.12.8-slim
+          command: ["python", "-B", "/runbook/runbook.py"]
+          ports:
+            - containerPort: 8080
+          env:
+            - name: NAMESPACE_ALVO
+              value: togglemaster
+            - name: DEPLOYMENTS_PERMITIDOS
+              value: auth-service,flag-service,targeting-service,evaluation-service,analytics-service
+            - name: CARENCIA_SEGUNDOS
+              value: "300"
+            - name: RUNBOOK_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-integracoes
+                  key: RUNBOOK_TOKEN
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 96Mi
+          readinessProbe:
+            httpGet:
+              path: /saude
+              port: 8080
+            periodSeconds: 10
+          volumeMounts:
+            - name: script
+              mountPath: /runbook
+      volumes:
+        - name: script
+          configMap:
+            name: runbook-self-healing
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: runbook-self-healing
+  namespace: observabilidade
+spec:
+  selector:
+    app: runbook-self-healing
+  ports:
+    - port: 8080
+      targetPort: 8080

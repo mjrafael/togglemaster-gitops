@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: runbook-self-healing
+  namespace: observabilidade
+# o token do pod não precisa de acesso a nada no próprio namespace, só ao togglemaster
+automountServiceAccountToken: true
+---
+# privilégio mínimo: ler e fazer patch só nos cinco deployments do ToggleMaster, só neste namespace.
+# sem delete, sem create, sem secrets, sem pods. o RBAC do Kubernetes não limita o campo do patch,
+# por isso o código do runbook só envia a anotação de restart e a chamada exige token
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: runbook-rollout-restart
+  namespace: togglemaster
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames:
+      - auth-service
+      - flag-service
+      - targeting-service
+      - evaluation-service
+      - analytics-service
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: runbook-rollout-restart
+  namespace: togglemaster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: runbook-rollout-restart
+subjects:
+  - kind: ServiceAccount
+    name: runbook-self-healing
+    namespace: observabilidade

@@ -1,0 +1,60 @@
+# tráfego constante para o dashboard e o alerta terem o que medir. chama o evaluation-service
+# (que puxa flag, targeting, Redis e SQS) e lista flags e regras, o que passa pelo auth-service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gerador-trafego
+  namespace: togglemaster
+  labels:
+    app: gerador-trafego
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gerador-trafego
+  template:
+    metadata:
+      labels:
+        app: gerador-trafego
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: gerador
+          image: curlimages/curl:8.11.1
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              while true; do
+                # o secret montado como arquivo é atualizado sozinho quando a chave é reemitida
+                CHAVE=$(cat /chave/service-api-key)
+                for flag in nova-home checkout-v2 flag-inexistente; do
+                  curl -s -o /dev/null --max-time 5 "http://evaluation-service:8004/evaluate?user_id=user-$RANDOM&flag_name=$flag"
+                done
+                curl -s -o /dev/null --max-time 5 -H "Authorization: Bearer $CHAVE" http://flag-service:8002/flags
+                curl -s -o /dev/null --max-time 5 -H "Authorization: Bearer $CHAVE" http://targeting-service:8003/rules/nova-home
+                sleep 1
+              done
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 48Mi
+          volumeMounts:
+            - name: chave
+              mountPath: /chave
+              readOnly: true
+      volumes:
+        - name: chave
+          secret:
+            secretName: evaluation-service-runtime

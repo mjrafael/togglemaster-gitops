@@ -1,0 +1,55 @@
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: togglemaster-erros
+    folder: ToggleMaster
+    interval: 30s
+    rules:
+      - uid: auth-5xx-acima-de-5
+        title: auth-service com 5xx acima de 5%
+        condition: C
+        data:
+          # percentual de spans de servidor com erro nos últimos 2 minutos. a segunda metade
+          # da expressão exige pelo menos 0,2 req/s, para uma requisição ruim isolada num
+          # minuto parado não acordar ninguém
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                (
+                  100 * sum(rate(traces_span_metrics_calls_total{service_name="auth-service", span_kind="SPAN_KIND_SERVER", status_code="STATUS_CODE_ERROR"}[2m]))
+                  /
+                  sum(rate(traces_span_metrics_calls_total{service_name="auth-service", span_kind="SPAN_KIND_SERVER"}[2m]))
+                )
+                and on()
+                sum(rate(traces_span_metrics_calls_total{service_name="auth-service", span_kind="SPAN_KIND_SERVER"}[2m])) > 0.2
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [5]
+        # 1 minuto acima do limite antes de disparar: um pico de segundos não vira incidente
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+          deployment: auth-service
+          namespace: togglemaster
+        annotations:
+          summary: auth-service respondendo 5xx acima de 5% das requisições
+          description: >-
+            A taxa de erro do auth-service passou de 5% por mais de 1 minuto. O flag-service e o
+            targeting-service dependem dele para validar chaves, então o evaluation-service também
+            degrada. O runbook de self-healing vai reiniciar o deployment automaticamente.
+          runbook_url: https://github.com/mjrafael/togglemaster-gitops/tree/main/observabilidade/config/runbook

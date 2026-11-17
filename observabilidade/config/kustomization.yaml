@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - runbook/rbac.yaml
+  - runbook/deployment.yaml
+  - gerador-trafego.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+# os labels grafana_dashboard e grafana_alert são o que o sidecar do grafana procura
+configMapGenerator:
+  - name: dashboard-togglemaster
+    namespace: observabilidade
+    files:
+      - grafana/togglemaster-saude.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+  - name: alertas-togglemaster
+    namespace: observabilidade
+    files:
+      - grafana/alertas.yaml
+      - grafana/contatos.yaml
+    options:
+      labels:
+        grafana_alert: "1"
+  - name: runbook-self-healing
+    namespace: observabilidade
+    files:
+      - runbook/runbook.py

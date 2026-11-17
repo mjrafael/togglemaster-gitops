@@ -1,0 +1,37 @@
+apiVersion: 1
+# as três integrações recebem o mesmo alerta: o PagerDuty abre o incidente e acorda o plantão,
+# o Discord avisa o time, e o webhook aciona o runbook que tenta corrigir sozinho.
+# os valores com cifrão vêm do secret grafana-integracoes, nunca do git
+contactPoints:
+  - orgId: 1
+    name: resposta-a-incidente
+    receivers:
+      - uid: pagerduty-plantao
+        type: pagerduty
+        settings:
+          integrationKey: ${PAGERDUTY_INTEGRATION_KEY}
+          severity: critical
+          class: http-5xx
+          component: auth-service
+          group: togglemaster
+      - uid: discord-incidentes
+        type: discord
+        settings:
+          url: ${DISCORD_WEBHOOK_URL}
+          use_discord_username: false
+      - uid: runbook-self-healing
+        type: webhook
+        settings:
+          url: http://runbook-self-healing.observabilidade.svc:8080/alerta
+          httpMethod: POST
+          authorization_scheme: Bearer
+          authorization_credentials: ${RUNBOOK_TOKEN}
+
+policies:
+  - orgId: 1
+    receiver: resposta-a-incidente
+    group_by: [alertname, deployment]
+    group_wait: 10s
+    group_interval: 1m
+    # se o self-healing não resolver, o lembrete volta em 30 minutos, não a cada avaliação
+    repeat_interval: 30m
