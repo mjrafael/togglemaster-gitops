@@ -50,6 +50,13 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 10
           env:
+            # telemetria: o pod manda traces para o OTel Collector do próprio nó
+            - name: OTEL_SERVICE_NAME
+              value: auth-service
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector.observabilidade.svc:4318
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: service.namespace=togglemaster,deployment.environment=dev
             - name: MASTER_KEY
               valueFrom:
                 secretKeyRef:

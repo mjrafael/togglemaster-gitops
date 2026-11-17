@@ -50,6 +50,25 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 10
           env:
+            # telemetria: o pod manda traces para o OTel Collector do próprio nó
+            - name: OTEL_SERVICE_NAME
+              value: flag-service
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector.observabilidade.svc:4318
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: service.namespace=togglemaster,deployment.environment=dev
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: http/protobuf
+            - name: OTEL_TRACES_EXPORTER
+              value: otlp
+            # métricas saem dos spans no collector e logs saem do arquivo do container,
+            # então o SDK só precisa mandar traces
+            - name: OTEL_METRICS_EXPORTER
+              value: none
+            - name: OTEL_LOGS_EXPORTER
+              value: none
+            - name: OTEL_PYTHON_FLASK_EXCLUDED_URLS
+              value: health
             - name: AUTH_SERVICE_URL
               value: http://auth-service:8001
             - name: DATABASE_URL
