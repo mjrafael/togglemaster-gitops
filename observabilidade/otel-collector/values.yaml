@@ -68,9 +68,13 @@ config:
       histogram:
         explicit:
           buckets: [5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2500ms, 5s]
+      # o otelhttp recente usa os nomes estáveis da convenção HTTP e a instrumentação Python
+      # ainda usa os antigos, então entram os dois pares
       dimensions:
         - name: http.method
         - name: http.status_code
+        - name: http.request.method
+        - name: http.response.status_code
       metrics_flush_interval: 15s
 
   exporters:

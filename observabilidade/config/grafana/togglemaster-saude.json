@@ -524,8 +524,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (service_name, http_status_code) (rate(traces_span_metrics_calls_total{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$servico\"}[1m]))",
-          "legendFormat": "{{service_name}} {{http_status_code}}"
+          "expr": "sum by (service_name, http_status_code, http_response_status_code) (rate(traces_span_metrics_calls_total{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$servico\"}[1m]))",
+          "legendFormat": "{{service_name}} {{http_status_code}}{{http_response_status_code}}"
         }
       ]
     },
