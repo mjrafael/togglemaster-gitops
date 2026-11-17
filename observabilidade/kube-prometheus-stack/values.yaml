@@ -1,0 +1,121 @@
+# nomes curtos e previsíveis: o collector e o grafana apontam para estes services
+fullnameOverride: monitoramento
+
+# o alerta mora no grafana, que fala direto com PagerDuty, Discord e o runbook.
+# um alertmanager parado ali só consumiria memória
+alertmanager:
+  enabled: false
+
+# as regras prontas do chart disparam dezenas de alertas que ninguém roteia, puro alert fatigue
+defaultRules:
+  create: false
+
+# no EKS o control plane é gerenciado pela AWS e esses componentes não são raspáveis
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+prometheusOperator:
+  # os webhooks dependem de jobs de certificado que brigam com o sync do ArgoCD
+  admissionWebhooks:
+    enabled: false
+  tls:
+    enabled: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 192Mi
+
+prometheus:
+  prometheusSpec:
+    # o OTel Collector empurra as métricas dos serviços por remote write
+    enableRemoteWriteReceiver: true
+    retention: 12h
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        memory: 1536Mi
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 20m
+      memory: 48Mi
+    limits:
+      memory: 128Mi
+
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 20m
+      memory: 24Mi
+    limits:
+      memory: 64Mi
+
+grafana:
+  fullnameOverride: grafana
+
+  # usuário e senha nascem no reconstruir-tudo.ps1, nunca no git
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+
+  # chave do PagerDuty, webhook do Discord e token do runbook entram como variável de ambiente
+  # e são interpolados nos arquivos de contact point provisionados pelo sidecar
+  envFromSecrets:
+    - name: grafana-integracoes
+
+  persistence:
+    enabled: false
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 192Mi
+    limits:
+      memory: 512Mi
+
+  grafana.ini:
+    unified_alerting:
+      enabled: true
+    users:
+      default_theme: dark
+
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: observabilidade
+    # regras de alerta, contact points e políticas de notificação vêm de ConfigMap, como código
+    alerts:
+      enabled: true
+      label: grafana_alert
+      labelValue: "1"
+      searchNamespace: observabilidade
+    datasources:
+      alertmanager:
+        enabled: false
+
+  additionalDataSources:
+    - name: Loki
+      uid: loki
+      type: loki
+      access: proxy
+      url: http://loki.observabilidade.svc:3100
+      jsonData:
+        maxLines: 1000

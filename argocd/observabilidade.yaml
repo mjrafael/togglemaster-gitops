@@ -1,0 +1,109 @@
+# stack de observabilidade. os charts vêm dos repositórios oficiais com versão fixa,
+# e os values ficam neste repositório (fonte "values"), então mudar configuração é commit
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 93.3.1
+      helm:
+        releaseName: kps
+        valueFiles:
+          - $values/observabilidade/kube-prometheus-stack/values.yaml
+    - repoURL: https://github.com/mjrafael/togglemaster-gitops.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observabilidade
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # as CRDs do prometheus-operator passam do limite de anotação do apply tradicional
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: loki
+      targetRevision: 7.6.0
+      helm:
+        releaseName: loki
+        valueFiles:
+          - $values/observabilidade/loki/values.yaml
+    - repoURL: https://github.com/mjrafael/togglemaster-gitops.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observabilidade
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: otel-collector
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+      chart: opentelemetry-collector
+      targetRevision: 0.178.3
+      helm:
+        releaseName: otel-collector
+        valueFiles:
+          - $values/observabilidade/otel-collector/values.yaml
+    - repoURL: https://github.com/mjrafael/togglemaster-gitops.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observabilidade
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+# dashboard, regra de alerta, contact points, runbook de self-healing e gerador de tráfego
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observabilidade-config
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/mjrafael/togglemaster-gitops.git
+    targetRevision: main
+    path: observabilidade/config
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observabilidade
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,108 @@
+# um collector por nó: lê os arquivos de log dos containers daquele nó e recebe o OTLP
+# dos pods vizinhos, sem salto de rede entre nós
+mode: daemonset
+fullnameOverride: otel-collector
+
+# a distribuição contrib traz filelog, k8sattributes, spanmetrics e prometheusremotewrite
+image:
+  repository: otel/opentelemetry-collector-contrib
+command:
+  name: otelcol-contrib
+
+presets:
+  # adiciona o receiver filelog lendo /var/log/pods do nó, com o parser de formato do containerd
+  logsCollection:
+    enabled: true
+  # adiciona o processor k8sattributes: pod, namespace e deployment em todo sinal
+  kubernetesAttributes:
+    enabled: true
+
+# em daemonset o service usa internalTrafficPolicy Local, então o pod fala com o collector do próprio nó
+service:
+  enabled: true
+
+ports:
+  jaeger-compact:
+    enabled: false
+  jaeger-thrift:
+    enabled: false
+  jaeger-grpc:
+    enabled: false
+  zipkin:
+    enabled: false
+
+extraEnvs:
+  - name: NEW_RELIC_LICENSE_KEY
+    valueFrom:
+      secretKeyRef:
+        name: newrelic
+        key: license-key
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 384Mi
+
+config:
+  receivers:
+    jaeger: null
+    zipkin: null
+    prometheus: null
+
+  processors:
+    resource/cluster:
+      attributes:
+        - key: k8s.cluster.name
+          value: togglemaster-dev-eks
+          action: upsert
+        - key: deployment.environment
+          value: dev
+          action: upsert
+
+  connectors:
+    # transforma cada span de servidor em contador e histograma. é daqui que saem a taxa de
+    # requisições e a taxa de 5xx do dashboard e do alerta, iguais para Go e Python
+    spanmetrics:
+      histogram:
+        explicit:
+          buckets: [5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2500ms, 5s]
+      dimensions:
+        - name: http.method
+        - name: http.status_code
+      metrics_flush_interval: 15s
+
+  exporters:
+    otlphttp/newrelic:
+      endpoint: https://otlp.nr-data.net
+      headers:
+        api-key: ${env:NEW_RELIC_LICENSE_KEY}
+      compression: gzip
+
+    otlphttp/loki:
+      endpoint: http://loki.observabilidade.svc:3100/otlp
+
+    prometheusremotewrite:
+      endpoint: http://monitoramento-prometheus.observabilidade.svc:9090/api/v1/write
+      # cada collector emite a própria série; sem este label, dois nós escrevendo a mesma
+      # série no remote write fariam o contador parecer que zerou. K8S_NODE_NAME vem do próprio chart
+      external_labels:
+        coletor: ${env:K8S_NODE_NAME}
+      resource_to_telemetry_conversion:
+        enabled: false
+
+  service:
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, resource/cluster, batch]
+        exporters: [otlphttp/newrelic, spanmetrics]
+      metrics:
+        receivers: [otlp, spanmetrics]
+        processors: [memory_limiter, resource/cluster, batch]
+        exporters: [prometheusremotewrite]
+      logs:
+        receivers: [otlp]
+        processors: [memory_limiter, resource/cluster, batch]
+        exporters: [otlphttp/loki]
